@@ -1,0 +1,121 @@
+#!/usr/bin/env python
+
+'''This program reads a file which is formatted with meaningful indentation (similar to python code). It turns it into an xml file.
+Example input:
+
+!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"
+html
+	head
+		meta http-equiv="Content-Type" content="text/html; charset=utf-8"
+		title
+			'Example page
+	body
+		p
+			'some text
+			'some more text
+			!--included comment
+			# not included comment
+
+This is transformed into:
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+		<title>Example page</title>
+	</head>
+	<body>
+		<p>some text
+some more text<!--included comment--></p>
+	</body>
+</html>
+
+
+In other words, tags are written with brackets; end tags are added.
+Lines starting with ' are used as text content, starting with ! are treated specially
+tags with text as direct child nodes or parents with direct child nodes preserve whitespace (meaning they do not add newlines or copy indentation).
+Two text nodes in a row get a newline between them.
+'''
+
+import sys
+
+def close ():
+	e = stack.pop ()
+	stack[-1]['children'].append (e)
+
+stack = [{'indent': -1, 'istr': '', 'value': 'BUG', 'tag': True, 'children': []}]
+while True:
+	line = sys.stdin.readline ()
+	if line == '':
+		break
+	l = line.lstrip ()
+	indent = len (line) - len (l)
+	if l == '' or l[0] == '#':
+		continue
+	if l[-1] == '\n':
+		l = l[:-1]
+	if l[-1] == '\r':
+		l = l[:-1]
+	if l[0] == "'":
+		l = l[1:]
+		is_tag = False
+	else:
+		is_tag = True
+	if indent > stack[-1]['indent']:
+		assert stack[-1]['tag'] != False, 'cannot nest in text'
+		stack.append ({'indent': indent, 'istr': line[:indent], 'value': l, 'tag': is_tag, 'children': []})
+		continue
+	while indent < stack[-1]['indent']:
+		close ()
+	assert indent == stack[-1]['indent'], 'invalid indentation'
+	close ()
+	stack.append ({'indent': indent, 'istr': line[:indent], 'value': l, 'tag': is_tag, 'children': []})
+# Clean up: close all open tags.
+while stack[-1]['indent'] >= 0:
+	close ()
+
+# Now write the tree.
+assert len (stack) == 1, 'Bug in generator: stack not empty at end of input'
+assert len (stack[0]['children']) > 0, 'No input elements'
+
+def write (tag, with_text):
+	r = ''
+	if tag['indent'] >= 0:
+		r += '<' + tag['value']
+		if len (tag['children']) == 0:
+			if tag['value'][0] != '!':
+				r += '/'
+			elif tag['value'][:3] == '!--':
+				r += '--'
+			r += '>'
+			return r
+		r += '>'
+	else:
+		assert tag['tag'], 'Root elements must be tags'
+	assert tag['value'][0] != '!', 'special tags may not have children'
+	have_text = with_text
+	for c in tag['children']:
+		if not c['tag']:
+			have_text = True
+			break
+	was_text = False
+	for c in tag['children']:
+		if c['tag']:
+			if not have_text:
+				if tag['indent'] >= 0 or c is not tag['children'][0]:
+					r += '\n'
+				r += c['istr']
+			r += write (c, have_text)
+			was_text = False
+		else:
+			if was_text:
+				r += '\n'
+			r += c['value']
+			was_text = True
+	if tag['indent'] >= 0:
+		if not have_text:
+			r += '\n' + tag['istr']
+		r += '</' + tag['value'].split ()[0] + '>'
+	return r
+
+sys.stdout.write (write (stack[0], False) + '\n')
