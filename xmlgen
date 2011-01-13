@@ -43,7 +43,18 @@ def close ():
 	e = stack.pop ()
 	stack[-1]['children'].append (e)
 
-stack = [{'indent': -1, 'istr': '', 'value': 'BUG', 'tag': True, 'children': []}]
+def parse_attrs (attrs):
+	v = attrs.split ()[0]
+	for a in attrs.split ()[1:]:
+		pos = a.index ('=')
+		val = a[pos + 1:]
+		if val[0] == '"' or val[0] == "'":
+			v += ' ' + a
+		else:
+			v += ' ' + a[:pos] + '="' + val.replace ('&', '&amp;').replace ('<', '&lt;').replace ('>', '&gt;').replace ('"', '&quot;') + '"'
+	return v
+
+stack = [{'indent': -2, 'istr': '', 'value': 'BUG', 'tag': True, 'children': []}]
 while True:
 	line = sys.stdin.readline ()
 	if line == '':
@@ -61,6 +72,25 @@ while True:
 		is_tag = False
 	else:
 		is_tag = True
+		if l[0] == '>':
+			# Create header for this filetype.
+			# With a known header, allow children of the root element without indentation.
+			if indent == 0:
+				fakeindent = -1
+			else:
+				fakeindent = indent
+			x = l[1:].split ()
+			if x[0] == 'html':
+				stack[-1]['children'].append ({'indent': fakeindent, 'istr': line[:indent], 'value': '!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"', 'tag': True, 'children': []})
+				stack.append ({'indent': fakeindent, 'istr': line[:indent], 'value': 'html xmlns="http://www.w3.org/1999/xhtml" lang="' + x[1] + '" xml:lang="' + x[1] + '"', 'tag': True, 'children': []})
+			elif x[0] == 'svg':
+				stack[-1]['children'].append ({'indent': fakeindent, 'istr': line[:indent], 'value': '!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"', 'tag': True, 'children': []})
+				stack.append ({'indent': fakeindent, 'istr': line[:indent], 'value': parse_attrs ('svg xmlns="http://www.w3.org/2000/svg" version="1.1"' + ' '.join (x[1:])), 'tag': True, 'children': []})
+			else:
+				raise AssertionError ('unknown header %s requested' % x[0])
+			continue
+		elif l[0] != '!' and l[0] != '?':
+			l = parse_attrs (l)
 	if indent > stack[-1]['indent']:
 		assert stack[-1]['tag'] != False, 'cannot nest in text'
 		stack.append ({'indent': indent, 'istr': line[:indent], 'value': l, 'tag': is_tag, 'children': []})
@@ -71,7 +101,7 @@ while True:
 	close ()
 	stack.append ({'indent': indent, 'istr': line[:indent], 'value': l, 'tag': is_tag, 'children': []})
 # Clean up: close all open tags.
-while stack[-1]['indent'] >= 0:
+while stack[-1]['indent'] >= -1:
 	close ()
 
 # Now write the tree.
@@ -80,10 +110,12 @@ assert len (stack[0]['children']) > 0, 'No input elements'
 
 def write (tag, with_text):
 	r = ''
-	if tag['indent'] >= 0:
+	if tag['indent'] >= -1:
 		r += '<' + tag['value']
 		if len (tag['children']) == 0:
-			if tag['value'][0] != '!':
+			if tag['value'][0] == '?':
+				r += '?'
+			elif tag['value'][0] != '!':
 				r += '/'
 			elif tag['value'][:3] == '!--':
 				r += '--'
@@ -93,6 +125,7 @@ def write (tag, with_text):
 	else:
 		assert tag['tag'], 'Root elements must be tags'
 	assert tag['value'][0] != '!', 'special tags may not have children'
+	assert tag['value'][0] != '?', 'special tags may not have children'
 	have_text = with_text
 	for c in tag['children']:
 		if not c['tag']:
@@ -102,7 +135,7 @@ def write (tag, with_text):
 	for c in tag['children']:
 		if c['tag']:
 			if not have_text:
-				if tag['indent'] >= 0 or c is not tag['children'][0]:
+				if tag['indent'] >= -1 or c is not tag['children'][0]:
 					r += '\n'
 				r += c['istr']
 			r += write (c, have_text)
@@ -112,7 +145,7 @@ def write (tag, with_text):
 				r += '\n'
 			r += c['value']
 			was_text = True
-	if tag['indent'] >= 0:
+	if tag['indent'] >= -1:
 		if not have_text:
 			r += '\n' + tag['istr']
 		r += '</' + tag['value'].split ()[0] + '>'
