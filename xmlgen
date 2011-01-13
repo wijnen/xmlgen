@@ -1,5 +1,21 @@
 #!/usr/bin/env python
 
+# xmlgen: Convert python-style files into xml documents
+# Copyright 2011 Bas Wijnen <wijnen@debian.org>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 '''This program reads a file which is formatted with meaningful indentation (similar to python code). It turns it into an xml file.
 Example input:
 
@@ -40,10 +56,12 @@ Two text nodes in a row get a newline between them.
 import sys
 
 def close ():
+	'''Close the top of stack and add it to its parent'''
 	e = stack.pop ()
 	stack[-1]['children'].append (e)
 
 def parse_attrs (attrs):
+	'''add quotes and escaping entities to an element'''
 	v = attrs.split ()[0]
 	for a in attrs.split ()[1:]:
 		pos = a.index ('=')
