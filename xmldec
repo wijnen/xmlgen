@@ -1,0 +1,69 @@
+#!/usr/bin/env python
+
+import sys
+
+def decode (s):
+	return s.replace ('&gt;', '>').replace ('&quot', '"').replace ('&lt;', '<').replace ('&amp;', '&')
+
+inp = sys.stdin.read ()
+indent = 0
+
+while inp != '':
+	inp = inp.lstrip ()
+	if inp == '':
+		break
+	if inp[0] == '<':
+		p = inp.index ('>')
+		tag = inp[1:p].rstrip ()
+		inp = inp[p + 1:]
+		s = tag.split (None, 1)
+		name = s[0]
+		if len (s) > 1:
+			args = s[1]
+		else:
+			args = ''
+		if name[0] == '/':
+			indent -= 1
+			continue
+		if name[0] == '!':
+			if name.startswith ('!--'):
+				assert name.endswith ('--')
+				sys.stdout.write ('\t' * indent + tag[:-2] + '\n')
+				continue
+			sys.stdout.write ('\t' * indent + tag + '\n')
+			continue
+		if args != '' and args[-1] == '/':
+			args = args[:-1].rstrip ()
+			empty = True
+		else:
+			empty = False
+		sys.stdout.write ('\t' * indent + name)
+		while args != '':
+			arg, rest = args.split ('=', 1)
+			q = rest[0]
+			p = rest.index (q, 1)
+			val = rest[q + 1:p]
+			args = rest[p + 1:].lstrip ()
+			if val.split ()[0] != val:
+				sys.stdout.write (' ' + arg + '=' + q + val + q)
+			else:
+				sys.stdout.write (' ' + arg + '=' + decode (val))
+		sys.stdout.write ('\n')
+		if not empty:
+			indent += 1
+	else:
+		p = inp.index ('<')
+		part = inp[:p]
+		inp = inp[p:]
+		while part != '':
+			p = part.find ('\n')
+			if p >= 0:
+				line = part[:p]
+				nextpart = part[p + 1:]
+			else:
+				line = part
+				nextpart = ''
+			sys.stdout.write ('\t' * indent + "'" + decode (line) + '\n')
+			part = nextpart
+
+assert indent == 0
