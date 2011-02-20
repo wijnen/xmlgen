@@ -19,18 +19,17 @@
 '''This program reads a file which is formatted with meaningful indentation (similar to python code). It turns it into an xml file.
 Example input:
 
-!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"
-html
-	head
-		meta http-equiv="Content-Type" content="text/html; charset=utf-8"
-		title
-			'Example page
-	body
-		p
-			'some text
-			'some more text
-			!--included comment
-			# not included comment
+>html en
+head
+	>htmlct
+	title
+		'Example page
+body
+	p
+		'some text
+		'some more text
+		!--included comment
+		# not included comment
 
 This is transformed into:
 
@@ -114,13 +113,16 @@ while True:
 			if x[0] == 'html':
 				stack[-1]['children'].append ({'indent': fakeindent, 'istr': line[:indent], 'online': None, 'value': '!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"', 'tag': True, 'children': []})
 				stack.append ({'indent': fakeindent, 'istr': line[:indent], 'online': None, 'value': 'html xmlns="http://www.w3.org/1999/xhtml" lang="' + x[1] + '" xml:lang="' + x[1] + '"', 'tag': True, 'children': []})
-			elif x[0] == 'svg':
+				continue
+			if x[0] == 'svg':
 				stack[-1]['children'].append ({'indent': fakeindent, 'istr': line[:indent], 'online': None, 'value': '!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"', 'tag': True, 'children': []})
-				stack.append ({'indent': fakeindent, 'istr': line[:indent], 'online': None, 'value': parse_attrs ('svg xmlns="http://www.w3.org/2000/svg" version="1.1"' + ' '.join (x[1:])), 'tag': True, 'children': []})
+				stack.append ({'indent': fakeindent, 'istr': line[:indent], 'online': None, 'value': parse_attrs ('svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink"' + ' '.join (x[1:])), 'tag': True, 'children': []})
+				continue
+			if x[0] == 'htmlct':
+				l = line[:indent] + 'meta http-equiv="Content-Type" content="text/html; charset=utf-8"'
 			else:
 				raise AssertionError ('unknown header %s requested' % x[0])
-			continue
-		elif l[0] != '!' and l[0] != '?':
+		if l[0] != '!' and l[0] != '?':
 			x = l.split (None, 1)
 			if x[0][-1] == ':':
 				l = x[0][:-1]
