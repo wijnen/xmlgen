@@ -122,6 +122,9 @@ while True:
 				l = line[:indent] + 'meta http-equiv="Content-Type" content="text/html; charset=utf-8"'
 			else:
 				raise AssertionError ('unknown header %s requested' % x[0])
+		if l[0] == ':':
+			online = l[1:]
+			l = None
 		if l[0] != '!' and l[0] != '?':
 			x = l.split (None, 1)
 			if x[0][-1] == ':':
@@ -147,17 +150,22 @@ assert len (stack[0]['children']) > 0, 'No input elements'
 def write (tag, with_text):
 	r = ''
 	if tag['indent'] >= -1:
-		r += '<' + tag['value']
+		if tag['value'] != None:
+			r += '<' + tag['value']
 		if len (tag['children']) == 0:
-			if tag['value'][0] == '?':
+			if tag['online'] != None:
+				if tag['value'] != None:
+					r += '>' + tag['online'] + '</' + tag['value']
+				else:
+					r += tag['online']
+			elif tag['value'][0] == '?':
 				r += '?'
-			elif tag['online'] != None:
-				r += '>' + tag['online'] + '</' + tag['value']
 			elif tag['value'][0] != '!':
 				r += '/'
 			elif tag['value'][:3] == '!--':
 				r += '--'
-			r += '>'
+			if tag['value'] != None:
+				r += '>'
 			return r
 		r += '>'
 	else:
