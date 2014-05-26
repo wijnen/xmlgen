@@ -27,13 +27,19 @@ while inp != '':
 			continue
 		if name[0] == '!':
 			if name.startswith ('!--'):
-				assert name.endswith ('--')
+				assert tag.endswith ('--')
 				sys.stdout.write ('\t' * indent + tag[:-2] + '\n')
 				continue
 			sys.stdout.write ('\t' * indent + tag + '\n')
 			continue
+		if name[0] == '?':
+			assert tag.endswith ('?')
+			sys.stdout.write ('\t' * indent + tag[:-1] + '\n')
+			continue
 		if args != '' and args[-1] == '/':
 			args = args[:-1].rstrip ()
+			empty = True
+		elif args == '' and name[-1] == '/':
 			empty = True
 		else:
 			empty = False
@@ -42,7 +48,7 @@ while inp != '':
 			arg, rest = args.split ('=', 1)
 			q = rest[0]
 			p = rest.index (q, 1)
-			val = rest[q + 1:p]
+			val = rest[1:p]
 			args = rest[p + 1:].lstrip ()
 			if val.split ()[0] != val:
 				sys.stdout.write (' ' + arg + '=' + q + val + q)
@@ -66,4 +72,5 @@ while inp != '':
 			sys.stdout.write ('\t' * indent + "'" + decode (line) + '\n')
 			part = nextpart
 
+print indent
 assert indent == 0
